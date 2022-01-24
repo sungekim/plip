@@ -12,6 +12,8 @@ from plip.basic.supplemental import whichresnumber, whichrestype, whichchain
 logger = logger.get_logger()
 
 def filter_contacts(pairings):
+
+    logger.debug(f'in filter')
     """Filter interactions by two criteria:
     1. No interactions between the same residue (important for intra mode).
     2. No duplicate interactions (A with B and B with A, also important for intra mode)."""
@@ -34,6 +36,7 @@ def filter_contacts(pairings):
         if data not in already_considered:
             filtered2_pairings.append(contact)
             already_considered.append(data)
+    logger.debug(f'filtered pairings returning: {filtered2_pairings}')
     return filtered2_pairings
 
 
@@ -204,23 +207,40 @@ def pication(rings, pos_charged, protcharged):
 
 
 def saltbridge(poscenter, negcenter, protispos):
+
+    logger.debug(f'in salt bridge function')
+    logger.debug(f'input:{poscenter}\n{negcenter}')
     """Detect all salt bridges (pliprofiler between centers of positive and negative charge)"""
     data = namedtuple(
         'saltbridge', 'positive negative distance protispos resnr restype reschain resnr_l restype_l reschain_l')
     pairings = []
     for pc, nc in itertools.product(poscenter, negcenter):
+
+        logger.debug(f'salt bridge for loop')
+
         if not config.MIN_DIST < euclidean3d(pc.center, nc.center) < config.SALTBRIDGE_DIST_MAX:
+            logger.debug(f'distance requirement not met. Exiting: {pc}, {nc}')
             continue
-        resnr = pc.resnr if protispos else nc.resnr
+        #resnr = pc.resnr if protispos else nc.resnr
+        resnr = whichresnumber(pc.orig_atoms[0]) if protispos else whichresnumber(nc.orig_atoms[0])
+        logger.debug(f'residue: {resnr}')
+
         resnr_l = whichresnumber(nc.orig_atoms[0]) if protispos else whichresnumber(pc.orig_atoms[0])
-        restype = pc.restype if protispos else nc.restype
+        #restype = pc.restype if protispos else nc.restype
+        restype = whichrestype(pc.orig_atoms[0]) if protispos else whichrestype(nc.orig_atoms[0])
         restype_l = whichrestype(nc.orig_atoms[0]) if protispos else whichrestype(pc.orig_atoms[0])
-        reschain = pc.reschain if protispos else nc.reschain
+
+
+        #reschain = pc.reschain if protispos else nc.reschain
+        reschain = whichchain(pc.orig_atoms[0]) if protispos else whichchain(nc.orig_atoms[0])
         reschain_l = whichchain(nc.orig_atoms[0]) if protispos else whichchain(pc.orig_atoms[0])
         contact = data(positive=pc, negative=nc, distance=euclidean3d(pc.center, nc.center), protispos=protispos,
                        resnr=resnr, restype=restype, reschain=reschain, resnr_l=resnr_l, restype_l=restype_l,
                        reschain_l=reschain_l)
         pairings.append(contact)
+
+    logger.debug(f'salt bridge result pair: {pairings}')
+    logger.debug(f'filter called')
     return filter_contacts(pairings)
 
 
